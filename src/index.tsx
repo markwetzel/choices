@@ -12,10 +12,41 @@ class ChoicesApp extends React.Component<ChoicesAppProps, ChoicesAppState> {
     options: Array<string>(),
   };
 
+  componentDidMount() {
+    try {
+      const json = localStorage.getItem('options');
+      const options = JSON.parse(json);
+
+      if (options) {
+        this.setState(() => ({ options }));
+      }
+    } catch (e) {
+      // Do nothing
+    }
+  }
+
+  componentDidUpdate(prevProps: ChoicesAppProps, prevState: ChoicesAppState) {
+    if (this.state.options.length !== prevState.options.length) {
+      const json = JSON.stringify(this.state.options);
+
+      localStorage.setItem('options', json);
+    }
+
+    console.log('Component Did Update');
+  }
+
+  componentWillUnmount() {
+    console.log('Unmount');
+  }
+
   handleDeleteOptions = () => {
-    this.setState(() => {
-      return { options: [] };
-    });
+    this.setState(() => ({ options: [] }));
+  };
+
+  handleDeleteOption = (option: string) => {
+    this.setState((prevState) => ({
+      options: prevState.options.filter((o) => o !== option),
+    }));
   };
 
   handleRandomChoiceClick = (event: MouseEvent) => {
@@ -31,11 +62,9 @@ class ChoicesApp extends React.Component<ChoicesAppProps, ChoicesAppState> {
       return 'Option already exists';
     }
 
-    this.setState((prevState) => {
-      return {
-        options: prevState.options.concat(option),
-      };
-    });
+    this.setState((prevState) => ({
+      options: prevState.options.concat(option),
+    }));
   };
 
   render() {
@@ -50,6 +79,7 @@ class ChoicesApp extends React.Component<ChoicesAppProps, ChoicesAppState> {
           onRandomChoiceClick={this.handleRandomChoiceClick}
         />
         <Options
+          onDeleteOption={this.handleDeleteOption}
           onHandleDeleteOptions={this.handleDeleteOptions}
           options={this.state.options}
         />
@@ -64,72 +94,69 @@ interface HeaderProps {
   title: string;
 }
 
-interface HeaderState {}
+const Header = (props: HeaderProps) => {
+  return (
+    <div>
+      <h1>{props.title}</h1>
+      <h2>{props.subtitle}</h2>
+    </div>
+  );
+};
 
-class Header extends React.Component<HeaderProps, HeaderState> {
-  render() {
-    return (
-      <div>
-        <h1>{this.props.title}</h1>
-        <h2>{this.props.subtitle}</h2>
-      </div>
-    );
-  }
-}
+Header.defaultProps = {
+  subtitle: 'Some Default',
+};
 
 interface ActionProps {
   hasOptions: boolean;
   onRandomChoiceClick: any;
 }
 
-interface ActionState {}
-
-class Action extends React.Component<ActionProps, ActionState> {
-  render() {
-    return (
-      <div>
-        <button
-          disabled={!this.props.hasOptions}
-          onClick={this.props.onRandomChoiceClick}
-        >
-          What should I do?
-        </button>
-      </div>
-    );
-  }
-}
+const Action = (props: ActionProps) => {
+  return (
+    <div>
+      <button disabled={!props.hasOptions} onClick={props.onRandomChoiceClick}>
+        What should I do?
+      </button>
+    </div>
+  );
+};
 
 interface OptionsProps {
+  onDeleteOption: any;
   onHandleDeleteOptions: any;
   options: string[];
 }
 
-interface OptionsState {}
-
-class Options extends React.Component<OptionsProps, OptionsState> {
-  render() {
-    return (
-      <div>
-        <button onClick={this.props.onHandleDeleteOptions}>Remove All</button>
-        {this.props.options.map((option) => (
-          <Option key={Math.random()} text={option} />
-        ))}
-      </div>
-    );
-  }
-}
+const Options = (props: OptionsProps) => {
+  return (
+    <div>
+      <button onClick={props.onHandleDeleteOptions}>Remove All</button>
+      {props.options.length === 0 && <p>Please add an option!</p>}
+      {props.options.map((option) => (
+        <Option
+          key={Math.random()}
+          onDeleteOption={props.onDeleteOption}
+          text={option}
+        />
+      ))}
+    </div>
+  );
+};
 
 interface OptionProps {
+  onDeleteOption: any;
   text: string;
 }
 
-interface OptionState {}
-
-class Option extends React.Component<OptionProps, OptionState> {
-  render() {
-    return <div>{this.props.text}</div>;
-  }
-}
+const Option = (props: OptionProps) => {
+  return (
+    <div>
+      {props.text}
+      <button onClick={() => props.onDeleteOption(props.text)}>Delete</button>
+    </div>
+  );
+};
 
 interface AddOptionProps {
   onAddOption: Function;
@@ -154,7 +181,9 @@ class AddOption extends React.Component<AddOptionProps, AddOptionState> {
 
     this.setState(() => ({ error }));
 
-    optionInput.value = '';
+    if (!error) {
+      optionInput.value = '';
+    }
   };
 
   render() {
